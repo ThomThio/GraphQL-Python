@@ -3,6 +3,8 @@ from graphene_django import DjangoObjectType
 from users.schema import UserType
 
 from .models import Link, Vote
+from django.db.models import Q
+
 
 
 class LinkType(DjangoObjectType):
@@ -14,16 +16,58 @@ class VoteType(DjangoObjectType):
         model = Vote
 
 
+#Filter demonstration
+# class Query(graphene.ObjectType):
+#     links = graphene.List(LinkType, search=graphene.String())
+#     votes = graphene.List(VoteType)
+
+#     # Change the resolver
+#     def resolve_links(self, info, search=None, **kwargs):
+#         # The value sent with the search parameter will be in the args variable
+#         if search:
+#             filter = (
+#                 Q(url__icontains=search) |
+#                 Q(description__icontains=search)
+#             )
+#             return Link.objects.filter(filter)
+
+#         return Link.objects.all()
+
+#     def resolve_votes(self, info, **kwargs):
+#         return Vote.objects.all()
+
+#Pagination Demonstration
 class Query(graphene.ObjectType):
-    links = graphene.List(LinkType)
+    # Add the first and skip parameters
+    links = graphene.List(
+        LinkType,
+        search=graphene.String(),
+        first=graphene.Int(),
+        skip=graphene.Int(),
+    )
     votes = graphene.List(VoteType)
 
-    def resolve_links(self, info, **kwargs):
-        return Link.objects.all()
+    # Use them to slice the Django queryset
+    def resolve_links(self, info, search=None, first=None, skip=None, **kwargs):
+        qs = Link.objects.all()
+
+        if search:
+            filter = (
+                Q(url__icontains=search) |
+                Q(description__icontains=search)
+            )
+            qs = qs.filter(filter)
+
+        if skip:
+            qs = qs[skip:]
+
+        if first:
+            qs = qs[:first]
+
+        return qs
 
     def resolve_votes(self, info, **kwargs):
         return Vote.objects.all()
-
 
 
 
